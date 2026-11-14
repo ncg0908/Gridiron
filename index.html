@@ -1826,6 +1826,11 @@ to{opacity:1}}
 .txr .txt{font-size:14px}
 .plab{display:inline-block;font-family:var(--display);font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;vertical-align:1px;background:var(--surface2);color:var(--muted)}
 .plab.generational{background:var(--q1);color:#FFFFFF}
+.plab.icon{color:#2A1B02;background:linear-gradient(105deg,#B8892B 0%,#F6DC8A 22%,#FFF6CF 34%,#E3BC62 46%,#B8892B 60%,#F3D57A 82%,#B8892B 100%);background-size:240% 100%;animation:iconshine 2.4s linear infinite;box-shadow:0 0 0 1px rgba(255,236,170,.6),0 0 10px rgba(240,200,90,.55);letter-spacing:.14em}
+@keyframes iconshine{from{background-position:120% 0}to{background-position:-120% 0}}
+@keyframes iconglow{50%{box-shadow:0 0 0 2px rgba(246,220,138,1) inset,0 0 26px rgba(240,200,90,.5),0 12px 24px -16px #000}}
+.sc-card.icon{box-shadow:0 0 0 2px rgba(240,200,90,.85) inset,0 0 14px rgba(240,200,90,.25),0 12px 24px -16px #000;animation:iconglow 2.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.plab.icon,.sc-card.icon{animation:none}}
 .plab.franchise{background:var(--q2);color:#FFFFFF}
 .plab.elite{background:var(--q3);color:#FFFFFF}
 .plab.starter{background:var(--q4);color:#1A1405}
@@ -3016,15 +3021,18 @@ const salDrift=()=>G&&G.ovrBase?clamp((G.ovrNow??G.ovrBase+2.5)-(G.ovrBase+2.5),
 function contractYears(p){return p.age<=26?ri(3,5):p.age<=30?ri(2,4):p.age<=32?ri(1,2):1;}
 function posWeighted(){return wpick(POS_ORDER,POS_ORDER.map(k=>POS[k].n));}
 const PEAK_BASE={QB:29,RB:25,WR:27,TE:27,OL:28,DL:27,LB:27,CB:26,S:27,K:30,P:30};
-/* ---- generational players (hidden; never shown anywhere) ----
-   About one prospect every 6-8 draft classes, mostly quarterbacks, is born different: he peaks higher, holds his prime years longer,
-   lifts his team in the playoffs and late in close games, and AI teams keep him and price him out of any trade unless he asks out or chooses to leave.
-   He is scouted as Generational in the draft and is a 90+ player by the end of his first season. Nothing protects him from injuries or from
-   landing on a bad team. The flag is p.gx. */
-let GEN_RATE=.135,GEN_PO=2.2,GEN_CL=2.2;
+/* ---- Icons ----
+   About once a decade a draft class holds an Icon (two in three are quarterbacks). He is tagged ICON in gold, ranked first on the board, and
+   comes in at 80-85 overall. He is a 90+ player by the end of his first season, holds his prime years longer, and lifts his team in the
+   playoffs and late in close games. AI teams keep him and price him out of any trade unless he asks out or chooses to leave, and while he
+   is still on the board the pick that would take him is priced the same way. Nothing protects him from injuries. The flag is p.gx. */
+let GEN_RATE=.1,GEN_PO=2.2,GEN_CL=2.2;
 const genLock=p=>!!p&&!!p.gx&&p.tid!=null&&p.tid!==G.user&&!p.req;   /* once he asks out, he is priced like anyone else */
 /* his own team prices him far beyond any package: you can ask, but the cost is all but impossible to meet */
 const genTV=(p,v)=>genLock(p)?Math.max(v,1500)*25:v;
+let ICONC={k:'',p:null};
+function iconInDraft(){const inD=G.phase==='draft'&&G.draft&&G.draft.pros,k=G.year+G.phase+(inD?G.draft.idx:'')+(G.dclass?1:0);if(ICONC.k===k)return ICONC.p;
+  const L=inD?G.draft.pros:(G.dclass&&G.dclass.y===G.year&&['resign','fa','draft'].includes(G.phase)?G.dclass.pros:null);ICONC={k,p:L?L.find(p=>p.gx)||null:null};return ICONC.p;}
 const genLift=st1=>{let n=0;try{Object.values(st1).flat().forEach(p=>{if(p.gx)n+=p.pos==='QB'?1:.5;});}catch(e){}return Math.min(n,1.5);};
 function ensureDev(p){if(p.pk==null)p.pk=PEAK_BASE[p.pos]+ri(-1,2);if(p.age>p.pk+1&&p.pot>p.ovr)p.pot=p.ovr;}
 function mkPlayer(pos,ovr,age){
@@ -4457,7 +4465,7 @@ function stealStory(e){const p=G.players.find(q=>q.id===e.pid),t=T(e.tid),g=gmOf
   return mkStory({k:'fo',tag:FO_TAG,s:44+(p.ovr-74),h:pickS(r,[`Savvy front office lands a steal: ${fname(p)} to ${cn(t)}`,`${cn(t)} ${vb(t,'finds','find')} the bargain of free agency in ${fname(p)}`,cheap?`Under the radar: ${fname(p)} signs with ${cn(t)} for just ${money(e.amt)}`:`${N} ${cheap?'steals':'bets on'} ${fname(p)}`]),
     dek:cheap?`${cap1(aRated(p.ovr))} ${p.pos} at ${money(e.amt)} a year, under his market value of about ${money(mk)}.`:`${cn(t)} believes the ${p.age}-year-old has another level to reach.`,
     body:[`${cn(t)} signed ${p.pos} ${fname(p)} (${p.ovr} OVR) to a ${e.yrs}-year deal at ${money(e.amt)} per season.`,
-      cheap?`Players of his caliber usually cost about ${money(mk)} a year. ${N} waited out the market and got him for less.`:`Scouts elsewhere had him pegged as a ${potLabel(p).toLowerCase()}-level player. ${cn(t)} is betting he becomes more.`,
+      cheap?`Players of his caliber usually cost about ${money(mk)} a year. ${N} waited out the market and got him for less.`:`Scouts elsewhere had him pegged as a ${potWord(p)}-level player. ${cn(t)} is betting he becomes more.`,
       `It is the kind of move that has made ${N} one of the league's most respected front-office minds.`],
     quotes:[[N,`${cn(t)} general manager`,qpick(r,[...QB.steal,`We had him at the top of our board. The price made it easy.`,`Patience pays in free agency.`,`Everyone was chasing the big names. We were chasing value.`])]],
     fans:{mood:.6,t:t.id,posts:fanPosts(r,t,.6,{up:[`How does our GM keep doing this`,`${money(e.amt)}?? Robbery.`,`Quietly the best move of the offseason`],mid:[],down:[]})},
@@ -5110,7 +5118,7 @@ function draftStories(){
   const top=R0.log[0]&&pm.get(R0.log[0].pid);
   if(top){const t=T(R0.log[0].tid),r=seeded(top.id*7);
     if(0)out.push(mkStory({k:'draft',tag:'Draft',s:52,h:`${cn(t)} takes ${top.pos} ${fname(top)} first overall`,dek:`${top.col||pick(COLLEGES)} star becomes the face of the ${poss(t)} rebuild.`,
-      body:[`With the first pick, ${cn(t)} selected ${top.pos} ${fname(top)} out of ${top.col||'college'}.`,`Scouts grade him as a ${potLabel(top).toLowerCase()}-caliber prospect, and he enters the league at ${top.ovr} overall.`,`${cn(t)} went ${(t.hist||[]).slice(-1)[0]?`${t.hist.slice(-1)[0].w}–${t.hist.slice(-1)[0].l}`:'through a rough year'} last season. ${top.l} is expected to start from day one.`],
+      body:[`With the first pick, ${cn(t)} selected ${top.pos} ${fname(top)} out of ${top.col||'college'}.`,`Scouts grade him as a ${potWord(top)}-caliber prospect, and he enters the league at ${top.ovr} overall.`,`${cn(t)} went ${(t.hist||[]).slice(-1)[0]?`${t.hist.slice(-1)[0].w}–${t.hist.slice(-1)[0].l}`:'through a rough year'} last season. ${top.l} is expected to start from day one.`],
       quotes:[[fname(top),`${top.pos}, ${cn(t)}`,qpick(r,[...QB.draftTop,`I've been waiting for this moment my whole life. ${cn(t)}, I'm coming.`,`They took a chance on me first. I'm going to make it worth it.`])]],
       fans:{mood:.7,t:t.id,posts:fanPosts(r,t,.7,{up:[`The future is HERE`,`Sell me the jersey right now`,`Tank paid off. Worth it.`],mid:[],down:[]})},facts:[['Pick','#1'],['OVR',top.ovr],['Potential',potLabel(top)]],pid:top.id,act:'player',v:top.id}));}
   const steal=R0.log.slice(32).map(l=>({l,p:pm.get(l.pid)})).filter(x=>x.p&&x.p.pos!=='K'&&x.p.pos!=='P').sort((a,b)=>scout(b.p).mid-scout(a.p).mid)[0];
@@ -6062,8 +6070,8 @@ function genDraftClass(){
      Who ends up with them depends only on who spots them. */
   {const n=G.teams.length,pool=shuffle(pros.filter(p=>p.brk>n*3&&p.brk<=n*ROUNDS&&p.pos!=='K'&&p.pos!=='P'&&!p.bust)),k=2+(R()<.5?1:0);
     pool.slice(0,k).forEach(p=>{ensureDev(p);const f=clamp((p.pk-p.age)/5,0,1),np=clamp(p.ovr+ri(24,30),p.ovr,99);if(f>.2&&np>p.pot){p.se=Math.round(((p.se||0)-(np-p.pot)/f)*10)/10;p.pot=np;p.gem=1;}});}
-  if(R()<GEN_RATE){const qb=R()<.7,pool=pros.filter(p=>!p.bust&&!p.gem&&(qb?p.pos==='QB':p.pos!=='QB'&&p.pos!=='K'&&p.pos!=='P')).sort((a,b)=>a.brk-b.brk).slice(0,qb?4:30),p=pool.length?pick(pool):null;
-    if(p){p.gx=1;p.pk=PEAK_BASE[p.pos]+ri(3,5);p.pot=99;const o=clamp(Math.max(p.ovr,74+ri(0,5)),44,80),d=o-p.ovr;p.ovr=o;p.lo=clamp(p.lo+d,35,99);p.hi+=d;}}
+  if(R()<GEN_RATE){const qb=R()<2/3,pool=pros.filter(p=>!p.bust&&!p.gem&&(qb?p.pos==='QB':p.pos!=='QB'&&p.pos!=='K'&&p.pos!=='P')).sort((a,b)=>a.brk-b.brk).slice(0,qb?4:30),p=pool.length?pick(pool):null;
+    if(p){p.gx=1;p.pk=PEAK_BASE[p.pos]+ri(3,5);p.pot=99;p.ovr=ri(80,85);p.lo=p.ovr-2;p.hi=p.ovr+2;const was=p.brk;pros.forEach(x=>{if(x!==p&&x.brk<was)x.brk++;});p.brk=1;}}
   {const top=pros.filter(p=>p.brk<=24&&p.pos!=='K'&&p.pos!=='P');shuffle(top).slice(0,0).forEach(p=>{p.rf=pick(['medical concerns about a knee injury from college','a disappointing 40-yard dash at the combine','concerns that he is undersized for the position','a shoulder injury that cost him half his final season','tape that shows him fading late in games','a lack of production against top competition']);p.rfv=ri(3,7);});}
   return pros;
 }
@@ -6088,8 +6096,9 @@ function scout(p){
   return {lo,hi,mid:(lo+hi)/2,pkLo:Math.max(p.age,pkMid-spread),pkHi:pkMid+spread,pkMid,yrs,u,
     conf:u<=3?'High':u<=6?'Medium':'Low',stage:yrs>0?'rising':p.age<=p.pk+1?'prime':'declining'};
 }
-const potLabel=p=>{const m=scout(p).mid;return p.gx||m>=96?'Generational':m>=88?'Franchise':m>=80?'Elite':m>=70?'Starter':'Bench';};
+const potLabel=p=>{if(p.gx)return 'Icon';const m=scout(p).mid;return m>=96?'Generational':m>=88?'Franchise':m>=80?'Elite':m>=70?'Starter':'Bench';};
 const potChip=p=>{const l=potLabel(p);return `<span class="plab ${l.toLowerCase()}">${l}</span>`;};
+const potWord=p=>p.gx?'once-in-a-decade':potLabel(p).toLowerCase();   /* for prose */
 function originText(p){const o=p.org;if(!o)return '';
   if(o.t==='d')return `Drafted ${o.y} · Round ${o.rd}, pick ${o.pk} by ${G.teams[o.tid]?T(o.tid).city+' '+T(o.tid).name:'—'}`;
   return `Undrafted free agent · ${o.y}`;}
@@ -6147,7 +6156,7 @@ function draftPosV(r,p){
 function aiPick(){
   let dt=null;try{dt=draftDayTrade();}catch(e){dt=null;}
   const D=G.draft,tid=D.order[D.idx],r=roster(tid),nd=teamNeeds(tid).slice(0,4).map(n=>n.pos);
-  const best=D.pros.map(p=>{const have=r.filter(x=>x.pos===p.pos).length;return {p,v:(p.lo+p.hi)/2*.55+scout(p).mid*.45-(p.rfv||0)+(have<POS[p.pos].n?4:0)+(nd.includes(p.pos)?5-nd.indexOf(p.pos):0)+draftPosV(r,p)-((p.pos==='K'||p.pos==='P')?(have>=1?20:0)+(D.idx<G.teams.length?40:D.idx<G.teams.length*2?18:0):0)+(p.gem?(gemSpot(tid,p)?11+8*Math.max(0,gsk(tid,'dr')):0):(p.pot-scout(p).mid)*Math.max(0,gsk(tid,'dr'))*1.6)-(p.bust?6*Math.max(0,gsk(tid,'dr')):0)+R()*(3+Math.max(0,-gsk(tid,'dr'))*18)};   /* sharp GMs see through scouting noise; weak ones reach */}).sort((a,b)=>b.v-a.v)[0];
+  const best=D.pros.map(p=>{const have=r.filter(x=>x.pos===p.pos).length;return {p,v:(p.lo+p.hi)/2*.55+scout(p).mid*.45-(p.rfv||0)+(have<POS[p.pos].n?4:0)+(nd.includes(p.pos)?5-nd.indexOf(p.pos):0)+draftPosV(r,p)-((p.pos==='K'||p.pos==='P')?(have>=1?20:0)+(D.idx<G.teams.length?40:D.idx<G.teams.length*2?18:0):0)+(p.gem?(gemSpot(tid,p)?11+8*Math.max(0,gsk(tid,'dr')):0):(p.pot-scout(p).mid)*Math.max(0,gsk(tid,'dr'))*1.6)-(p.bust?6*Math.max(0,gsk(tid,'dr')):0)+(p.gx?500:0)+R()*(3+Math.max(0,-gsk(tid,'dr'))*18)};   /* sharp GMs see through scouting noise; weak ones reach */}).sort((a,b)=>b.v-a.v)[0];
   draftPlayer(tid,best.p.id);
   if(dt){(G.wkEv=G.wkEv||[]).push({k:'dtrade',...dt,pid:best.p.id});const l=D.log[D.log.length-1];if(l)l.tr=dt.dn;}
 }
@@ -6425,6 +6434,8 @@ function pickSlot(pk){const N=G.teams.length,D=G.draft;
 const slotValue=n=>8+414*Math.exp(-n/3)+540*Math.exp(-n/46);   /* fit to measured career value by draft slot (v136 draft model) */
 function pickValue(pk,tid){
   let v=slotValue(pickSlot(pk))*(pk.y>draftYear()?.9:1);
+  /* the pick that lands the Icon is worth what he is: no one trades up for it */
+  if(pk.own!==G.user&&pk.y===draftYear()&&iconInDraft()&&Math.round(pickSlot(pk))===(G.phase==='draft'&&G.draft?G.draft.idx+1:1))v=Math.max(v,1500)*25;
   if(tid!=null){const m=aiTradeMode(tid);v*=m==='rebuild'?1.25:m==='contend'?.85:1;const s=gsk(tid,'tr');v*=s>=0?1+.08*s:1+.35*s;}return v;   /* weak GMs treat picks as throw-ins */
 }
 function evalTrade(){
@@ -7568,7 +7579,7 @@ function mockStory(){
     const sc=pool.map(p=>({p,v:val(p)+(nd.includes(p.pos)?5-nd.indexOf(p.pos):0)-(got.includes(p.pos)?8:0)+r()*4})).sort((a,b)=>b.v-a.v),best=sc[0].p;
     pool.splice(pool.indexOf(best),1);(taken[tid]=got).push(best.pos);
     picks.push({n:i+1,tid,p:best,need:nd.indexOf(best.pos),alts:tid===me?sc.slice(1,4).map(x=>x.p.id):null});});
-  const lab=p=>potLabel(p),note=x=>{const p=x.p,t=T(x.tid),brk=p.brk||x.n,top=lab(p)==='Generational'?`Generational ceiling. `:'';
+  const lab=p=>potLabel(p),note=x=>{const p=x.p,t=T(x.tid),brk=p.brk||x.n,top=lab(p)==='Icon'?`An Icon. `:lab(p)==='Generational'?`Generational ceiling. `:'';
     if(brk<=x.n-6)return top+rot('sl',[`Our board has him ${ordn(brk)}. Real value here.`,`A slide stops here. ${ordn(brk)} on our board.`,`He should not be available this late.`]);
     if(brk>=x.n+8)return top+rot('re',[`Earlier than our board (${ordn(brk)}), but the need is real.`,`A reach on paper. ${t.abbr} will not care if he starts.`]);
     if(x.need===0)return top+rot('n0',[`${t.abbr}'s biggest hole is ${p.pos}. Easy match.`,`Day-one starter at the top need.`,`The need and the board line up.`]);
@@ -7578,7 +7589,7 @@ function mockStory(){
   const p1=picks[0].p,t1=T(picks[0].tid),board=pros.slice().sort((a,b)=>(a.brk||999)-(b.brk||999)),top50=board.slice(0,50);
   const cnt={};top50.forEach(p=>{cnt[p.pos]=(cnt[p.pos]||0)+1;});
   const posL=POS_ORDER.filter(k=>k!=='K'&&k!=='P').map(k=>[k,cnt[k]||0]).sort((a,b)=>b[1]-a[1]),deep=posL[0],thin=posL.filter(x=>x[1]<=1).map(x=>x[0]);
-  const qbs=picks.filter(x=>x.p.pos==='QB'),qb10=qbs.filter(x=>x.n<=10).length,blue=picks.filter(x=>['Generational','Franchise'].includes(lab(x.p))).length,strong=blue>=14,weak=blue<=8;
+  const qbs=picks.filter(x=>x.p.pos==='QB'),qb10=qbs.filter(x=>x.n<=10).length,blue=picks.filter(x=>['Icon','Generational','Franchise'].includes(lab(x.p))).length,strong=blue>=14,weak=blue<=8;
   /* the user's picks, every round */
   const myNums=(G.picks||[]).filter(p=>p.y===G.year&&p.own===me).map(p=>(p.rd-1)*NT+ord.indexOf(p.orig)+1).filter(n=>n>0).sort((a,b)=>a-b);
   const mine=picks.find(x=>x.tid===me)||null,needs=teamNeeds(me).slice(0,4).map(x=>x.pos);
@@ -7588,6 +7599,7 @@ function mockStory(){
   const rest=pool.filter(p=>p.pos!=='K'&&p.pos!=='P').sort((a,b)=>val(b)-val(a)).slice(0,6);
   const slide=picks.filter(x=>(x.p.brk||x.n)<=x.n-6).sort((a,b)=>(b.n-b.p.brk)-(a.n-a.p.brk))[0],reach=picks.filter(x=>(x.p.brk||x.n)>=x.n+8).sort((a,b)=>(b.p.brk-b.n)-(a.p.brk-a.n))[0];
   const H=[];
+  if(lab(p1)==='Icon')H.unshift(`${fname(p1)} is the Icon of this class, and ${cn(t1)} ${vb(t1,'has','have')} him`);
   if(lab(p1)==='Generational')H.push(`${fname(p1)} is a generational prize, and ${cn(t1)} ${vb(t1,'holds','hold')} the ticket`);
   if(p1.pos==='QB')H.push(`${cn(t1)} ${vb(t1,'gets','get')} a quarterback at No. 1`);
   if(qb10>=3)H.push(`${nWord(qb10)} quarterbacks in the top 10`);
@@ -8081,7 +8093,7 @@ function faPreviewStory(){
 /* ===================== Draft night recap ===================== */
 function draftGradesStory(){
   const R0=G.draftRecap;if(!R0)return null;const pm=new Map(G.players.map(p=>[p.id,p])),r=seeded(G.year*17+3),Pk=a=>pickS(r,a.filter(Boolean)),rot=fxRot(r),L=fxLay(),NT=G.teams.length,me=G.user,meT=T(me);
-  const sc=l=>{const p=pm.get(l.pid);if(!p)return 0;const brk=l.brk||p.brk||l.n,v=clamp((l.n-brk)/7,-2,2);return v+(l.need?.5:-.25)-((p.pos==='K'||p.pos==='P')&&l.n<=NT*2?1.6:0)+(potLabel(p)==='Generational'?.4:0);};
+  const sc=l=>{const p=pm.get(l.pid);if(!p)return 0;const brk=l.brk||p.brk||l.n,v=clamp((l.n-brk)/7,-2,2);return v+(l.need?.5:-.25)-((p.pos==='K'||p.pos==='P')&&l.n<=NT*2?1.6:0)+(['Icon','Generational'].includes(potLabel(p))?.4:0);};
   const note=(l,p)=>{const brk=l.brk||p.brk||l.n;return l.n-brk>=8?rot('v',[`Value pick. Our board had him ${ordn(brk)}.`,`He should have gone earlier. ${ordn(brk)} on our board.`]):brk-l.n>=10?rot('r',[`A reach. We had him ${ordn(brk)}.`,`Early for a player we ranked ${ordn(brk)}.`]):p.pos==='K'||p.pos==='P'?`A specialist this early is hard to defend.`:l.need?rot('n',[`Fills a real need at ${p.pos}.`,`Need and board lined up.`,`${p.pos} was the hole. Not anymore.`]):rot('b',[`Best player available.`,`Took the talent.`,`No need, no problem.`]);};
   const r1=R0.log.slice(0,NT).map(l=>{const p=pm.get(l.pid);return p?[l.n,l.tid,p.id,gradeOf(sc(l)),note(l,p)]:null;}).filter(Boolean);
   const team={};R0.log.forEach(l=>{(team[l.tid]=team[l.tid]||[]).push(sc(l));});
@@ -8282,14 +8294,14 @@ function draftLiveTick(){draftTimer=null;if(!UI.dLive||G.phase!=='draft'){UI.dLi
 function draftLiveToggle(){clearTimeout(draftTimer);draftTimer=null;if(UI.dLive){UI.dLive=false;if(UI.dReveal!=null){UI.dRevT=setTimeout(()=>{UI.dReveal=null;if(G.phase==='draft')render();},1200);}return;}
   if(G.phase!=='draft')return;if(G.draft.order[G.draft.idx]===G.user){toast("You're on the clock. Make your pick.");return;}
   UI.dLive=true;draftTimer=setTimeout(draftLiveTick,UI.dReveal!=null?1200:2000);if(UI.dReveal==null)UI.dTm={at:Date.now(),dur:2000};}
-const SCOUT_TAKE={Generational:['Rare, rare talent','Franchise-changer','Can\'t-miss prospect','Generational upside','Once-a-decade player','Hall of Fame tools','Instant game-changer','Best in the class','Scouts are drooling','Built in a lab','Elite in every trait','True difference-maker','Face-of-the-league type','No real weaknesses','Freak athlete, polished','Day-one superstar','The prize of the draft','Worth trading up for'],
+const SCOUT_TAKE={Icon:['Once-in-a-decade talent','An era starts here','Build the next decade on him','The one everybody wants','No debate at the top','Ready to star on day one','A franchise changes tonight','You do not pass on this'],Generational:['Rare, rare talent','Franchise-changer','Can\'t-miss prospect','Generational upside','Once-a-decade player','Hall of Fame tools','Instant game-changer','Best in the class','Scouts are drooling','Built in a lab','Elite in every trait','True difference-maker','Face-of-the-league type','No real weaknesses','Freak athlete, polished','Day-one superstar','The prize of the draft','Worth trading up for'],
   Franchise:['Day-one starter','Pro-ready','High floor, high ceiling','Plug-and-play star','Future Pro Bowler','Polished and productive','Big-game performer','Rare instincts','Elite athlete','Scheme-proof talent','Ready for Week 1','Tone-setter','Leader in the locker room','Explosive playmaker','Smooth, natural mover','Plays faster than he times','Instant upgrade','Cornerstone piece'],
   Starter:['Solid contributor','Upside if he develops','Reliable starter','Smart, tough, coachable','High motor','Good bones, needs polish','Steady and dependable','Starter by Year 2','Scheme fit matters','Plays with an edge','Quietly productive','Good instincts','Workhorse mentality','Ascending prospect','Sneaky value','Technically sound','Plus athlete, still raw','Solid all-around'],
   Bench:['Developmental project','Raw, needs time','Special-teams value','Late-round flier','Camp body with upside','Practice-squad stash','Toolsy but raw','Depth piece','Needs a year or two','Long shot','Small-school sleeper','One trait to build on','Rotational upside','All effort, all the time','Backup ceiling','Worth a flier','Needs a pro weight room','Situational player']};
 const SCOUT_POS={QB:['Big arm','Pinpoint accuracy','Reads it fast','Calm in the pocket','Extends plays','Throws with anticipation'],RB:['Breaks tackles','Home-run speed','Patient runner','Three-down back','Hard to bring down'],WR:['Separates easily','Strong hands','Deep threat','Crisp routes','Wins contested balls'],TE:['Mismatch weapon','Plus blocker','Reliable hands','Red-zone target'],
   OL:['Road grader','Anchor in pass pro','Nasty finisher','Quick feet','Plays with leverage'],DL:['Wins off the snap','Heavy hands','Real pass-rush plan','Collapses the pocket','Hard to block one-on-one'],LB:['Sideline to sideline','Downhill thumper','Coverage linebacker','Always around the ball'],CB:['Sticky in man','Ball hawk','Press specialist','Mirrors receivers'],S:['Rangy center fielder','Big hitter','Disguises coverages','Instinctive in space'],K:['Big leg','Ice in his veins','Automatic inside 50'],P:['Booming leg','Pins it deep','Great hang time']};
 /* scouting blurbs: hashed per player, and never repeated within the same draft board */
-const scoutTake=(p,used)=>{const r=seeded((p.id*2654435761+G.year*97)%1000003);r();r();const lab=potLabel(p),pos=SCOUT_POS[p.pos]||[],gen=SCOUT_TAKE[lab]||(lab==='Elite'?SCOUT_TAKE.Franchise:SCOUT_TAKE.Bench);
+const scoutTake=(p,used)=>{const r=seeded((p.id*2654435761+G.year*97)%1000003);r();r();if(p.gx)return SCOUT_TAKE.Icon[Math.floor(r()*SCOUT_TAKE.Icon.length)];const lab=potLabel(p),pos=SCOUT_POS[p.pos]||[],gen=SCOUT_TAKE[lab]||(lab==='Elite'?SCOUT_TAKE.Franchise:SCOUT_TAKE.Bench);
   const L=r()<.4&&lab!=='Bench'&&pos.length?[...pos,...gen]:[...gen,...pos];const st=Math.floor(r()*L.length);
   for(let k=0;k<L.length;k++){const t=L[(st+k)%L.length];if(!used||!used.has(t)){if(used)used.add(t);return t;}}return L[st];};
 function renderDraft(){
@@ -8316,7 +8328,7 @@ function renderDraft(){
   if(dt==='pros'){const rng=(lo,hi)=>{const a=clamp((lo-40)/55*100,0,100),b=clamp((hi-40)/55*100,0,100);return `<span class="dn-rng"><i class="qb${tierP((lo+hi)/2)}" style="left:${a}%;width:${Math.max(4,b-a)}%"></i></span>`;};
     h+=`<div class="dn-pros">${chips('draftPos')}
     ${(()=>{UI._tkU=new Set();return '';})()}${pros.slice(0,UI.prosAll?120:25).map(p=>{const tk=scoutTake(p,UI._tkU),top=(p.brk||99)<=10;
-      return `<div class="sc-card ${top?'t10':''}" data-act="player" data-v="${p.id}" role="button"><div class="sc-rk"><small>Rank</small><b>${p.brk||'—'}</b></div><button class="sc-face" data-act="player" data-v="${p.id}">${faceSVG(p)}<span class="sc-pos">${p.pos}</span></button>
+      return `<div class="sc-card ${top?'t10':''}${p.gx?' icon':''}" data-act="player" data-v="${p.id}" role="button"><div class="sc-rk"><small>Rank</small><b>${p.brk||'—'}</b></div><button class="sc-face" data-act="player" data-v="${p.id}">${faceSVG(p)}<span class="sc-pos">${p.pos}</span></button>
         <div class="sc-b"><div class="sc-n">${fname(p)}</div><div class="sc-m">${p.col||'—'} · Age ${p.age}</div><div class="sc-l">${potChip(p)}<span class="sc-tk">“${tk}”</span></div>
           <div class="sc-r">${rng(p.lo,p.hi)}<b>${p.lo}–${p.hi}</b><small>OVR</small></div></div>
         <button class="sc-dr ${me?'on':''}" data-act="draft" data-v="${p.id}" ${me?'':'disabled'}>Draft</button></div>`;}).join('')||'<div class="empty">No prospects left at this position.</div>'}
