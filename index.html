@@ -2877,7 +2877,7 @@ button,.row,.btn{touch-action:manipulation}
 .bk-kv span{text-transform:none;letter-spacing:0;font-size:12.5px;line-height:1.3;margin-top:3px}
 .bk-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .bk-chip{padding:4px 9px;border-radius:999px;background:var(--surface2);font-size:12.5px;color:var(--ink)}
-.bk-mine{border-top:4px solid var(--tc,var(--accent))}
+.bk-mine{border:0;border-top:4px solid var(--tc,var(--accent));border-radius:16px 16px 0 0}
 .bk-go .btn{width:100%}
 </style>
 
@@ -3017,11 +3017,12 @@ function contractYears(p){return p.age<=26?ri(3,5):p.age<=30?ri(2,4):p.age<=32?r
 function posWeighted(){return wpick(POS_ORDER,POS_ORDER.map(k=>POS[k].n));}
 const PEAK_BASE={QB:29,RB:25,WR:27,TE:27,OL:28,DL:27,LB:27,CB:26,S:27,K:30,P:30};
 /* ---- generational players (hidden; never shown anywhere) ----
-   About one prospect every 4-6 draft classes, mostly quarterbacks, is born different: he peaks higher, holds his prime years longer,
-   lifts his team in the playoffs and late in close games, and AI teams never let him walk and price him out of any trade. Nothing protects him from
-   injuries or from landing on a bad team. The flag is p.gx. */
-let GEN_RATE=.21,GEN_PO=2.2,GEN_CL=2.2;
-const genLock=p=>!!p&&!!p.gx&&p.tid!=null&&p.tid!==G.user;
+   About one prospect every 6-8 draft classes, mostly quarterbacks, is born different: he peaks higher, holds his prime years longer,
+   lifts his team in the playoffs and late in close games, and AI teams keep him and price him out of any trade unless he asks out or chooses to leave.
+   He is scouted as Generational in the draft and is a 90+ player by the end of his first season. Nothing protects him from injuries or from
+   landing on a bad team. The flag is p.gx. */
+let GEN_RATE=.135,GEN_PO=2.2,GEN_CL=2.2;
+const genLock=p=>!!p&&!!p.gx&&p.tid!=null&&p.tid!==G.user&&!p.req;   /* once he asks out, he is priced like anyone else */
 /* his own team prices him far beyond any package: you can ask, but the cost is all but impossible to meet */
 const genTV=(p,v)=>genLock(p)?Math.max(v,1500)*25:v;
 const genLift=st1=>{let n=0;try{Object.values(st1).flat().forEach(p=>{if(p.gx)n+=p.pos==='QB'?1:.5;});}catch(e){}return Math.min(n,1.5);};
@@ -4005,6 +4006,7 @@ function gmSecurity(g){
   let pw=0,ps=0;H.forEach((y,i)=>{const w=[1,.6,.35][i];pw+=w;ps+=w*seasonGrade(wpOf(y),y.ex);});
   let s=55+cur*110+(pw?ps/pw*70:0)+(ten<=1?20:ten===2?14:ten===3?8:ten===4?3:0)+(g.ovr-70)*.8;
   if(H.length&&gp>=8&&curY>=g.y0){const d=pct(t)-wpOf(H[0]);s+=d>=.13?6:d<=-.2?-4:0;}   /* getting better buys patience */
+  if((G.phase==='done'&&G.champ===t.id)||mine.some(y=>y.res==='Won Cup'&&y.y>=curY-1))return 100;   /* win it all and the job is yours: full security through the title defense */
   const L=mine.filter(y=>y.y>=curY-2),live=['playoffs','done'].includes(G.phase)&&G.po;
   if(L.some(y=>y.res==='Won Cup')||(G.phase==='done'&&G.champ===t.id))s+=25;else if(L.some(y=>y.seed>0)||(live&&G.po.seeds.flat().includes(t.id)))s+=8;
   s+=Math.min(10,mine.filter(y=>y.res==='Won Cup'&&y.y<curY-2).length*5);   /* old banners still count for something */
@@ -5900,6 +5902,8 @@ function weeklyDev(){
     up*=gF*(p.gx?Math.max(1,p.dvm||1):(p.dvm||1)*(base>=90?.55:base>=86?.75:1));dn*=dF*(p.gx?Math.min(1,p.dvd||1)*.65:p.dvd||1);   /* the last steps to elite come slowest */
     if(up&&R()<clamp(up/W,0,.6)&&p.ovr<Math.min(99,Math.max(p.pot,base+1))){p.ovr++;p.sd=(p.sd||0)+1;}
     if(dn&&R()<clamp(dn/W,0,.6)&&p.ovr>35){p.ovr--;p.sd=(p.sd||0)-1;}
+    /* an eras player arrives fast: whatever he was drafted at, he is a 90+ player when his first season ends */
+    if(p.gx&&toPeak>0&&p.ovr<91+p.id%3){const inc=Math.ceil((91+p.id%3-p.ovr)/Math.max(1,W-G.week));p.ovr+=inc;p.sd=(p.sd||0)+inc;}
     if(p.sd===0)delete p.sd;});
   if(typeof RC!=='undefined')RC=null;
 }
@@ -6007,7 +6011,7 @@ function aiResign(tid){
     const score=Math.max(0,p.ovr-bar)*POS_W[p.pos]+dev-agePen*(1-.6*b);
     return {p,score,amt:Math.max(.75,r2(p.neg.d*(p.neg.walk?1.1:1)*(1-.1*w+.35*b)))};   /* never below the league minimum */
   }).sort((a,b)=>b.score-a.score).forEach(x=>{
-    const gk=!!x.p.gx&&x.p.ovr>=78,want=gk||(!x.p.neg.leave&&x.score>0&&x.p.age<=33&&(!x.p.neg.walk||x.score>=8)&&!(R()<Math.max(0,-gsk(tid,'cap'))*.4));   /* weak GMs let good players walk */
+    const gk=!!x.p.gx&&x.p.ovr>=78&&!x.p.neg.leave&&!x.p.req,want=gk||(!x.p.neg.leave&&x.score>0&&x.p.age<=33&&(!x.p.neg.walk||x.score>=8)&&!(R()<Math.max(0,-gsk(tid,'cap'))*.4));   /* weak GMs let good players walk */
     if(want&&(gk||payroll(tid)+x.amt<=capNow()-reserve(tid,keep.length+1))){x.p.salary=x.amt;x.p.yrs=x.p.age>=30?Math.min(5,x.p.neg.y+Math.round(2*Math.max(0,-gsk(tid,'cap')))):x.p.neg.y;delete x.p.neg;keep.push(x.p);if(x.p.ovr>=80)(G.wkEv=G.wkEv||[]).push({k:'resigned',pid:x.p.id,tid,amt:x.amt,yrs:x.p.yrs});}else toFA(x.p);
   });
 }
@@ -6059,7 +6063,7 @@ function genDraftClass(){
   {const n=G.teams.length,pool=shuffle(pros.filter(p=>p.brk>n*3&&p.brk<=n*ROUNDS&&p.pos!=='K'&&p.pos!=='P'&&!p.bust)),k=2+(R()<.5?1:0);
     pool.slice(0,k).forEach(p=>{ensureDev(p);const f=clamp((p.pk-p.age)/5,0,1),np=clamp(p.ovr+ri(24,30),p.ovr,99);if(f>.2&&np>p.pot){p.se=Math.round(((p.se||0)-(np-p.pot)/f)*10)/10;p.pot=np;p.gem=1;}});}
   if(R()<GEN_RATE){const qb=R()<.7,pool=pros.filter(p=>!p.bust&&!p.gem&&(qb?p.pos==='QB':p.pos!=='QB'&&p.pos!=='K'&&p.pos!=='P')).sort((a,b)=>a.brk-b.brk).slice(0,qb?4:30),p=pool.length?pick(pool):null;
-    if(p){p.gx=1;p.pk=PEAK_BASE[p.pos]+ri(3,5);p.pot=99;const o=clamp(Math.max(p.ovr,72+ri(0,4)),44,80),d=o-p.ovr;p.ovr=o;p.lo=clamp(p.lo+d,35,99);p.hi+=d;}}
+    if(p){p.gx=1;p.pk=PEAK_BASE[p.pos]+ri(3,5);p.pot=99;const o=clamp(Math.max(p.ovr,74+ri(0,5)),44,80),d=o-p.ovr;p.ovr=o;p.lo=clamp(p.lo+d,35,99);p.hi+=d;}}
   {const top=pros.filter(p=>p.brk<=24&&p.pos!=='K'&&p.pos!=='P');shuffle(top).slice(0,0).forEach(p=>{p.rf=pick(['medical concerns about a knee injury from college','a disappointing 40-yard dash at the combine','concerns that he is undersized for the position','a shoulder injury that cost him half his final season','tape that shows him fading late in games','a lack of production against top competition']);p.rfv=ri(3,7);});}
   return pros;
 }
@@ -6078,13 +6082,13 @@ function scout(p){
   ensureDev(p);
   const r=seeded(p.id*7+13),n1=(r()+r()+r()-1.5)*2,n2=(r()+r()+r()-1.5)*2;
   const yrs=Math.max(0,p.pk-p.age),u=yrs>0?clamp(1.5+yrs*1.4,2,11):1;
-  const mid=p.pot+n1*u*.4+(p.se||0)*clamp((p.pk-p.age)/5,0,1);
+  const mid=Math.max(p.gx&&p.age<=p.pk?97:0,p.pot+n1*u*.4+(p.se||0)*clamp((p.pk-p.age)/5,0,1));
   const lo=clamp(Math.max(Math.round(mid-u*.55),p.ovr),35,99),hi=clamp(Math.max(Math.round(mid+u*.55),lo),35,99);
   const pkMid=Math.max(p.age,p.pk+(yrs>0?Math.round(n2*Math.min(1.5,yrs*.35)):0)),spread=yrs>2?1:0;
   return {lo,hi,mid:(lo+hi)/2,pkLo:Math.max(p.age,pkMid-spread),pkHi:pkMid+spread,pkMid,yrs,u,
     conf:u<=3?'High':u<=6?'Medium':'Low',stage:yrs>0?'rising':p.age<=p.pk+1?'prime':'declining'};
 }
-const potLabel=p=>{const m=scout(p).mid;return m>=96?'Generational':m>=88?'Franchise':m>=80?'Elite':m>=70?'Starter':'Bench';};
+const potLabel=p=>{const m=scout(p).mid;return p.gx||m>=96?'Generational':m>=88?'Franchise':m>=80?'Elite':m>=70?'Starter':'Bench';};
 const potChip=p=>{const l=potLabel(p);return `<span class="plab ${l.toLowerCase()}">${l}</span>`;};
 function originText(p){const o=p.org;if(!o)return '';
   if(o.t==='d')return `Drafted ${o.y} · Round ${o.rd}, pick ${o.pk} by ${G.teams[o.tid]?T(o.tid).city+' '+T(o.tid).name:'—'}`;
@@ -8354,7 +8358,7 @@ function rosterCard(tid,key,plain){
   let last=null;const rows=list.map(p=>{let hd='';
     if(mine&&UI[key]!=='All'&&p.pos!==last){last=p.pos;const h=healthyAt(tid,p.pos),n=roster(tid).filter(x=>x.pos===p.pos).length;
       hd=`<div class="poshd ${h<REQ[p.pos]?'short':''}"><b>${p.pos}</b><span>${REQ[p.pos]} healthy required · ${h} healthy · ${n} on roster</span></div>`;}
-    return hd+playerRow(p,{meta:(st.has(p.id)?' · Starter':'')+(p.req?' · <b class="loss">Wants out</b>':'')});}).join('');
+    return hd+playerRow(p,{meta:(st.has(p.id)?' · Starter':'')+(p.req?'<br><b class="loss">Wants out</b>':'')});}).join('');
   return `<div class="card">${chips(key,true,true)}<div class="list">${rows||'<div class="empty">No players at this position.</div>'}</div></div>`;
 }
 function renderTeamTab(){
